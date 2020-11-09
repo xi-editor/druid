@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::attr::{FieldKind, Fields, LensAttrs};
+use super::field_attr::{FieldKind, Fields, LensAttrs};
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashSet;
@@ -70,7 +70,7 @@ fn derive_struct(input: &syn::DeriveInput) -> Result<proc_macro2::TokenStream, s
         quote! {
             /// Lens for the field on #ty
             #[allow(non_camel_case_types)]
-            #[derive(Debug, Copy, Clone)]
+            #[derive(Debug, Copy, Clone, PartialEq)]
             pub struct #field_name;
         }
     });
@@ -104,12 +104,34 @@ fn derive_struct(input: &syn::DeriveInput) -> Result<proc_macro2::TokenStream, s
         let field_ty = &f.ty;
 
         quote! {
-            impl #impl_generics druid::Lens<#ty#ty_generics, #field_ty> for #twizzled_name::#field_name #where_clause {
-                fn with<#val_ty_par, #func_ty_par: FnOnce(&#field_ty) -> #val_ty_par>(&self, data: &#ty#ty_generics, f: #func_ty_par) -> #val_ty_par {
+            impl #impl_generics druid::Lens<
+                #ty#ty_generics,
+                #field_ty
+            > for #twizzled_name::#field_name
+            #where_clause {
+                fn with<
+                    #val_ty_par,
+                    #func_ty_par
+                > (
+                    &self,
+                    data: &#ty#ty_generics,
+                    f: #func_ty_par
+                ) -> #val_ty_par
+                where #func_ty_par: FnOnce(&#field_ty) -> #val_ty_par
+                {
                     f(&data.#field_name)
                 }
 
-                fn with_mut<#val_ty_par, #func_ty_par: FnOnce(&mut #field_ty) -> #val_ty_par>(&self, data: &mut #ty#ty_generics, f: #func_ty_par) -> #val_ty_par {
+                fn with_mut<
+                    #val_ty_par,
+                    #func_ty_par
+                > (
+                    &self,
+                    data: &mut #ty#ty_generics,
+                    f: #func_ty_par
+                ) -> #val_ty_par
+                where #func_ty_par: FnOnce(&mut #field_ty) -> #val_ty_par
+                {
                     f(&mut data.#field_name)
                 }
             }
@@ -143,11 +165,11 @@ fn derive_struct(input: &syn::DeriveInput) -> Result<proc_macro2::TokenStream, s
 }
 
 //I stole these from rustc!
-fn char_has_case(c: char) -> bool {
+pub fn char_has_case(c: char) -> bool {
     c.is_lowercase() || c.is_uppercase()
 }
 
-fn is_camel_case(name: &str) -> bool {
+pub fn is_camel_case(name: &str) -> bool {
     let name = name.trim_matches('_');
     if name.is_empty() {
         return true;
@@ -163,7 +185,7 @@ fn is_camel_case(name: &str) -> bool {
         })
 }
 
-fn to_snake_case(mut str: &str) -> String {
+pub fn to_snake_case(mut str: &str) -> String {
     let mut words = vec![];
     // Preserve leading underscores
     str = str.trim_start_matches(|c: char| {

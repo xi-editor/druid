@@ -16,6 +16,8 @@ use std::marker::PhantomData;
 use std::ops;
 use std::sync::Arc;
 
+use crate::affine_traversal as aff;
+use crate::prism;
 use crate::Data;
 
 /// A lens is a datatype that gives access to a part of a larger
@@ -33,13 +35,15 @@ use crate::Data;
 /// sophistication, for example combinators to combine lenses.
 ///
 /// [Haskell lens]: http://hackage.haskell.org/package/lens
-pub trait Lens<T: ?Sized, U: ?Sized> {
+pub trait Lens<T1: ?Sized, T2: ?Sized> {
     /// Get non-mut access to the field.
     ///
     /// Runs the supplied closure with a reference to the data. It's
     /// structured this way, as opposed to simply returning a reference,
     /// so that the data might be synthesized on-the-fly by the lens.
-    fn with<V, F: FnOnce(&U) -> V>(&self, data: &T, f: F) -> V;
+    fn with<V, F>(&self, data: &T1, f: F) -> V
+    where
+        F: FnOnce(&T2) -> V;
 
     /// Get mutable access to the field.
     ///
@@ -49,47 +53,32 @@ pub trait Lens<T: ?Sized, U: ?Sized> {
     /// For example, a lens for an immutable list might be implemented by
     /// cloning the list, giving the closure mutable access to the clone,
     /// then updating the reference after the closure returns.
-    fn with_mut<V, F: FnOnce(&mut U) -> V>(&self, data: &mut T, f: F) -> V;
+    fn with_mut<V, F>(&self, data: &mut T1, f: F) -> V
+    where
+        F: FnOnce(&mut T2) -> V;
 }
 
 /// Helpers for manipulating `Lens`es
-pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
+pub trait LensExt<T1: ?Sized, T2: ?Sized>: Lens<T1, T2> {
     /// Copy the targeted value out of `data`
-    fn get(&self, data: &A) -> B
+    fn get(&self, data: &T1) -> T2
     where
-        B: Clone,
+        T2: Clone,
     {
-        self.with(data, |x| x.clone())
+        self.with(data, |t2| t2.clone())
     }
 
     /// Set the targeted value in `data` to `value`
-    fn put(&self, data: &mut A, value: B)
+    fn put(&self, data: &mut T1, value: T2)
     where
-        B: Sized,
+        T2: Sized,
     {
-        self.with_mut(data, |x| *x = value);
+        self.with_mut(data, |t2| *t2 = value);
     }
 
-    /// Compose a `Lens<A, B>` with a `Lens<B, C>` to produce a `Lens<A, C>`
+    /// Combine a `Lens<T1, T2>` with a function that can transform a `T2` and its inverse.
     ///
-    /// ```
-    /// # use druid::*;
-    /// struct Foo { x: (u32, bool) }
-    /// let lens = lens!(Foo, x).then(lens!((u32, bool), 1));
-    /// assert_eq!(lens.get(&Foo { x: (0, true) }), true);
-    /// ```
-    fn then<Other, C>(self, other: Other) -> Then<Self, Other, B>
-    where
-        Other: Lens<B, C> + Sized,
-        C: ?Sized,
-        Self: Sized,
-    {
-        Then::new(self, other)
-    }
-
-    /// Combine a `Lens<A, B>` with a function that can transform a `B` and its inverse.
-    ///
-    /// Useful for cases where the desired value doesn't physically exist in `A`, but can be
+    /// Useful for cases where the desired value doesn't physically exist in `T1`, but can be
     /// computed. For example, a lens like the following might be used to adapt a value with the
     /// range 0-2 for use with a `Widget<f64>` like `Slider` that has a range of 0-1:
     ///
@@ -99,14 +88,14 @@ pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
     /// assert_eq!(lens.map(|x| x / 2.0, |x, y| *x = y * 2.0).get(&(true, 2.0)), 1.0);
     /// ```
     ///
-    /// The computed `C` may represent a whole or only part of the original `B`.
-    fn map<Get, Put, C>(self, get: Get, put: Put) -> Then<Self, Map<Get, Put>, B>
+    /// The computed `T3` may represent a whole or only part of the original `T2`.
+    fn map<Get, Put, T3>(self, get: Get, put: Put) -> Then<Self, Map<Get, Put>, T2>
     where
-        Get: Fn(&B) -> C,
-        Put: Fn(&mut B, C),
+        Get: Fn(&T2) -> T3,
+        Put: Fn(&mut T2, T3),
         Self: Sized,
     {
-        self.then(Map::new(get, put))
+        Then::new(self, Map::new(get, put))
     }
 
     /// Invoke a type's `Deref` impl
@@ -115,12 +104,12 @@ pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
     /// # use druid::*;
     /// assert_eq!(lens::Id.deref().get(&Box::new(42)), 42);
     /// ```
-    fn deref(self) -> Then<Self, Deref, B>
+    fn deref(self) -> Then<Self, Deref, T2>
     where
-        B: ops::Deref + ops::DerefMut,
+        T2: ops::Deref + ops::DerefMut,
         Self: Sized,
     {
-        self.then(Deref)
+        Then::new(self, Deref)
     }
 
     /// Invoke a type's `AsRef` and `AsMut` impl.
@@ -162,12 +151,13 @@ pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
     ///
     /// [`Lens`]: ./trait.Lens.html
     /// [`index`]: #method.index
-    fn as_ref<T: ?Sized>(self) -> Then<Self, Ref, B>
+    fn as_ref<T>(self) -> Then<Self, Ref, T2>
     where
-        B: AsRef<T> + AsMut<T>,
+        T: ?Sized,
+        T2: AsRef<T> + AsMut<T>,
         Self: Sized,
     {
-        self.then(Ref)
+        Then::new(self, Ref)
     }
 
     /// Access an index in a container
@@ -176,13 +166,13 @@ pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
     /// # use druid::*;
     /// assert_eq!(lens::Id.index(2).get(&vec![0u32, 1, 2, 3]), 2);
     /// ```
-    fn index<I>(self, index: I) -> Then<Self, Index<I>, B>
+    fn index<I>(self, index: I) -> Then<Self, Index<I>, T2>
     where
         I: Clone,
-        B: ops::Index<I> + ops::IndexMut<I>,
+        T2: ops::Index<I> + ops::IndexMut<I>,
         Self: Sized,
     {
-        self.then(Index::new(index))
+        Then::new(self, Index::new(index))
     }
 
     /// Adapt to operate on the contents of an `Arc` with efficient copy-on-write semantics
@@ -200,15 +190,33 @@ pub trait LensExt<A: ?Sized, B: ?Sized>: Lens<A, B> {
     /// ```
     fn in_arc(self) -> InArc<Self>
     where
-        A: Clone,
-        B: Data,
+        T1: Clone,
+        T2: Data,
         Self: Sized,
     {
         InArc::new(self)
     }
+
+    fn guarded_by<P1, T3>(self, prism: P1) -> aff::PrismGuard<P1, Self, T3>
+    where
+        Self: Sized,
+        P1: prism::PartialPrism<T1, T3>,
+    {
+        use aff::Guard;
+        prism.guard(self)
+    }
+
+    fn discard(self) -> Then<Self, Unit<T2>, T2>
+    where
+        Self: Sized,
+        T2: Sized,
+    {
+        use aff::Then;
+        self.then(Unit::default())
+    }
 }
 
-impl<A: ?Sized, B: ?Sized, T: Lens<A, B>> LensExt<A, B> for T {}
+impl<S: ?Sized, A: ?Sized, L: Lens<S, A>> LensExt<S, A> for L {}
 
 /// Lens accessing a member of some type using accessor functions
 ///
@@ -224,27 +232,33 @@ pub struct Field<Get, GetMut> {
 
 impl<Get, GetMut> Field<Get, GetMut> {
     /// Construct a lens from a pair of getter functions
-    pub fn new<T: ?Sized, U: ?Sized>(get: Get, get_mut: GetMut) -> Self
+    pub fn new<T1: ?Sized, T2: ?Sized>(get: Get, get_mut: GetMut) -> Self
     where
-        Get: Fn(&T) -> &U,
-        GetMut: Fn(&mut T) -> &mut U,
+        Get: Fn(&T1) -> &T2,
+        GetMut: Fn(&mut T1) -> &mut T2,
     {
         Self { get, get_mut }
     }
 }
 
-impl<T, U, Get, GetMut> Lens<T, U> for Field<Get, GetMut>
+impl<T1, T2, Get, GetMut> Lens<T1, T2> for Field<Get, GetMut>
 where
-    T: ?Sized,
-    U: ?Sized,
-    Get: Fn(&T) -> &U,
-    GetMut: Fn(&mut T) -> &mut U,
+    T1: ?Sized,
+    T2: ?Sized,
+    Get: Fn(&T1) -> &T2,
+    GetMut: Fn(&mut T1) -> &mut T2,
 {
-    fn with<V, F: FnOnce(&U) -> V>(&self, data: &T, f: F) -> V {
+    fn with<V, F>(&self, data: &T1, f: F) -> V
+    where
+        F: FnOnce(&T2) -> V,
+    {
         f((self.get)(data))
     }
 
-    fn with_mut<V, F: FnOnce(&mut U) -> V>(&self, data: &mut T, f: F) -> V {
+    fn with_mut<V, F>(&self, data: &mut T1, f: F) -> V
+    where
+        F: FnOnce(&mut T2) -> V,
+    {
         f((self.get_mut)(data))
     }
 }
@@ -262,29 +276,29 @@ where
 #[macro_export]
 macro_rules! lens {
     ($ty:ty, [$index:expr]) => {
-        $crate::lens::Field::new::<$ty, _>(move |x| &x[$index], move |x| &mut x[$index])
+        $crate::lens::Field::new::<$ty, _>(move |t1| &t1[$index], move |t1| &mut t1[$index])
     };
     ($ty:ty, $field:tt) => {
-        $crate::lens::Field::new::<$ty, _>(move |x| &x.$field, move |x| &mut x.$field)
+        $crate::lens::Field::new::<$ty, _>(move |t1| &t1.$field, move |t1| &mut t1.$field)
     };
 }
 
 /// `Lens` composed of two lenses joined together
-#[derive(Debug, Copy)]
-pub struct Then<T, U, B: ?Sized> {
-    left: T,
-    right: U,
-    _marker: PhantomData<B>,
+#[derive(Debug, Copy, PartialEq)]
+pub struct Then<L1, L2, T2: ?Sized> {
+    left: L1,
+    right: L2,
+    _marker: PhantomData<T2>,
 }
 
-impl<T, U, B: ?Sized> Then<T, U, B> {
+impl<L1, L2, T2: ?Sized> Then<L1, L2, T2> {
     /// Compose two lenses
     ///
     /// See also `LensExt::then`.
-    pub fn new<A: ?Sized, C: ?Sized>(left: T, right: U) -> Self
+    pub fn new<T1: ?Sized, T3: ?Sized>(left: L1, right: L2) -> Self
     where
-        T: Lens<A, B>,
-        U: Lens<B, C>,
+        L1: Lens<T1, T2>,
+        L2: Lens<T2, T3>,
     {
         Self {
             left,
@@ -294,24 +308,31 @@ impl<T, U, B: ?Sized> Then<T, U, B> {
     }
 }
 
-impl<T, U, A, B, C> Lens<A, C> for Then<T, U, B>
+impl<L1, L2, T1, T2, T3> Lens<T1, T3> for Then<L1, L2, T2>
 where
-    A: ?Sized,
-    B: ?Sized,
-    C: ?Sized,
-    T: Lens<A, B>,
-    U: Lens<B, C>,
+    T1: ?Sized,
+    T2: ?Sized,
+    T3: ?Sized,
+    L1: Lens<T1, T2>,
+    L2: Lens<T2, T3>,
 {
-    fn with<V, F: FnOnce(&C) -> V>(&self, data: &A, f: F) -> V {
-        self.left.with(data, |b| self.right.with(b, f))
+    fn with<V, F>(&self, data: &T1, f: F) -> V
+    where
+        F: FnOnce(&T3) -> V,
+    {
+        let t2f = |t2: &T2| self.right.with(t2, f);
+        self.left.with(data, t2f)
     }
 
-    fn with_mut<V, F: FnOnce(&mut C) -> V>(&self, data: &mut A, f: F) -> V {
-        self.left.with_mut(data, |b| self.right.with_mut(b, f))
+    fn with_mut<V, F>(&self, data: &mut T1, f: F) -> V
+    where
+        F: FnOnce(&mut T3) -> V,
+    {
+        self.left.with_mut(data, |t2| self.right.with_mut(t2, f))
     }
 }
 
-impl<T: Clone, U: Clone, B> Clone for Then<T, U, B> {
+impl<L1: Clone, L2: Clone, T2> Clone for Then<L1, L2, T2> {
     fn clone(&self) -> Self {
         Self {
             left: self.left.clone(),
@@ -322,7 +343,7 @@ impl<T: Clone, U: Clone, B> Clone for Then<T, U, B> {
 }
 
 /// `Lens` built from a getter and a setter
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Map<Get, Put> {
     get: Get,
     put: Put,
@@ -332,25 +353,31 @@ impl<Get, Put> Map<Get, Put> {
     /// Construct a mapping
     ///
     /// See also `LensExt::map`
-    pub fn new<A: ?Sized, B>(get: Get, put: Put) -> Self
+    pub fn new<T1: ?Sized, T2>(get: Get, put: Put) -> Self
     where
-        Get: Fn(&A) -> B,
-        Put: Fn(&mut A, B),
+        Get: Fn(&T1) -> T2,
+        Put: Fn(&mut T1, T2),
     {
         Self { get, put }
     }
 }
 
-impl<A: ?Sized, B, Get, Put> Lens<A, B> for Map<Get, Put>
+impl<T1: ?Sized, T2, Get, Put> Lens<T1, T2> for Map<Get, Put>
 where
-    Get: Fn(&A) -> B,
-    Put: Fn(&mut A, B),
+    Get: Fn(&T1) -> T2,
+    Put: Fn(&mut T1, T2),
 {
-    fn with<V, F: FnOnce(&B) -> V>(&self, data: &A, f: F) -> V {
+    fn with<V, F>(&self, data: &T1, f: F) -> V
+    where
+        F: FnOnce(&T2) -> V,
+    {
         f(&(self.get)(data))
     }
 
-    fn with_mut<V, F: FnOnce(&mut B) -> V>(&self, data: &mut A, f: F) -> V {
+    fn with_mut<V, F>(&self, data: &mut T1, f: F) -> V
+    where
+        F: FnOnce(&mut T2) -> V,
+    {
         let mut temp = (self.get)(data);
         let x = f(&mut temp);
         (self.put)(data, temp);
@@ -361,17 +388,23 @@ where
 /// `Lens` for invoking `Deref` and `DerefMut` on a type
 ///
 /// See also `LensExt::deref`.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Deref;
 
 impl<T: ?Sized> Lens<T, T::Target> for Deref
 where
     T: ops::Deref + ops::DerefMut,
 {
-    fn with<V, F: FnOnce(&T::Target) -> V>(&self, data: &T, f: F) -> V {
+    fn with<V, F>(&self, data: &T, f: F) -> V
+    where
+        F: FnOnce(&T::Target) -> V,
+    {
         f(data.deref())
     }
-    fn with_mut<V, F: FnOnce(&mut T::Target) -> V>(&self, data: &mut T, f: F) -> V {
+    fn with_mut<V, F>(&self, data: &mut T, f: F) -> V
+    where
+        F: FnOnce(&mut T::Target) -> V,
+    {
         f(data.deref_mut())
     }
 }
@@ -399,7 +432,7 @@ where
 }
 
 /// `Lens` for indexing containers
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Index<I> {
     index: I,
 }
@@ -418,10 +451,16 @@ where
     T: ?Sized + ops::Index<I> + ops::IndexMut<I>,
     I: Clone,
 {
-    fn with<V, F: FnOnce(&T::Output) -> V>(&self, data: &T, f: F) -> V {
+    fn with<V, F>(&self, data: &T, f: F) -> V
+    where
+        F: FnOnce(&T::Output) -> V,
+    {
         f(&data[self.index.clone()])
     }
-    fn with_mut<V, F: FnOnce(&mut T::Output) -> V>(&self, data: &mut T, f: F) -> V {
+    fn with_mut<V, F>(&self, data: &mut T, f: F) -> V
+    where
+        F: FnOnce(&mut T::Output) -> V,
+    {
         f(&mut data[self.index.clone()])
     }
 }
@@ -429,15 +468,21 @@ where
 /// The identity lens: the lens which does nothing, i.e. exposes exactly the original value.
 ///
 /// Useful for starting a lens combinator chain, or passing to lens-based interfaces.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Id;
 
-impl<A: ?Sized> Lens<A, A> for Id {
-    fn with<V, F: FnOnce(&A) -> V>(&self, data: &A, f: F) -> V {
+impl<T: ?Sized> Lens<T, T> for Id {
+    fn with<V, F>(&self, data: &T, f: F) -> V
+    where
+        F: FnOnce(&T) -> V,
+    {
         f(data)
     }
 
-    fn with_mut<V, F: FnOnce(&mut A) -> V>(&self, data: &mut A, f: F) -> V {
+    fn with_mut<V, F>(&self, data: &mut T, f: F) -> V
+    where
+        F: FnOnce(&mut T) -> V,
+    {
         f(data)
     }
 }
@@ -445,7 +490,7 @@ impl<A: ?Sized> Lens<A, A> for Id {
 /// A `Lens` that exposes data within an `Arc` with copy-on-write semantics
 ///
 /// A copy is only made in the event that a different value is written.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct InArc<L> {
     inner: L,
 }
@@ -454,31 +499,37 @@ impl<L> InArc<L> {
     /// Adapt a lens to operate on an `Arc`
     ///
     /// See also `LensExt::in_arc`
-    pub fn new<A, B>(inner: L) -> Self
+    pub fn new<T1, T2>(inner: L) -> Self
     where
-        A: Clone,
-        B: Data,
-        L: Lens<A, B>,
+        T1: Clone,
+        T2: Data,
+        L: Lens<T1, T2>,
     {
         Self { inner }
     }
 }
 
-impl<A, B, L> Lens<Arc<A>, B> for InArc<L>
+impl<T1, T2, L> Lens<Arc<T1>, T2> for InArc<L>
 where
-    A: Clone,
-    B: Data,
-    L: Lens<A, B>,
+    T1: Clone,
+    T2: Data,
+    L: Lens<T1, T2>,
 {
-    fn with<V, F: FnOnce(&B) -> V>(&self, data: &Arc<A>, f: F) -> V {
+    fn with<V, F>(&self, data: &Arc<T1>, f: F) -> V
+    where
+        F: FnOnce(&T2) -> V,
+    {
         self.inner.with(data, f)
     }
 
-    fn with_mut<V, F: FnOnce(&mut B) -> V>(&self, data: &mut Arc<A>, f: F) -> V {
-        let mut temp = self.inner.with(data, |x| x.clone());
+    fn with_mut<V, F>(&self, data: &mut Arc<T1>, f: F) -> V
+    where
+        F: FnOnce(&mut T2) -> V,
+    {
+        let mut temp = self.inner.with(data, |t2| t2.clone());
         let v = f(&mut temp);
-        if self.inner.with(data, |x| !x.same(&temp)) {
-            self.inner.with_mut(Arc::make_mut(data), |x| *x = temp);
+        if self.inner.with(data, |t2| !t2.same(&temp)) {
+            self.inner.with_mut(Arc::make_mut(data), |t2| *t2 = temp);
         }
         v
     }

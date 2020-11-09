@@ -21,12 +21,12 @@ use syn::{Error, ExprPath, Meta, NestedMeta};
 use quote::{quote, quote_spanned};
 
 //show error to tell users of old API that it doesn't work anymore
-const BASE_DRUID_DEPRECATED_ATTR_PATH: &str = "druid";
-const BASE_DATA_ATTR_PATH: &str = "data";
-const BASE_LENS_ATTR_PATH: &str = "lens";
-const IGNORE_ATTR_PATH: &str = "ignore";
-const DATA_SAME_FN_ATTR_PATH: &str = "same_fn";
-const LENS_NAME_OVERRIDE_ATTR_PATH: &str = "name";
+pub const BASE_DRUID_DEPRECATED_ATTR_PATH: &str = "druid";
+pub const BASE_DATA_ATTR_PATH: &str = "data";
+pub const BASE_LENS_ATTR_PATH: &str = "lens";
+pub const IGNORE_ATTR_PATH: &str = "ignore";
+pub const DATA_SAME_FN_ATTR_PATH: &str = "same_fn";
+pub const LENS_NAME_OVERRIDE_ATTR_PATH: &str = "name";
 
 /// The fields for a struct or an enum variant.
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub enum FieldKind {
     Unnamed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FieldIdent {
     Named(String),
     Unnamed(usize),
@@ -59,7 +59,7 @@ impl FieldIdent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field<Attrs> {
     pub ident: FieldIdent,
     pub ty: syn::Type,
@@ -285,7 +285,7 @@ impl<Attrs> Field<Attrs> {
     }
 }
 
-fn parse_lit_into_expr_path(lit: &syn::Lit) -> Result<ExprPath, Error> {
+pub fn parse_lit_into_expr_path(lit: &syn::Lit) -> Result<ExprPath, Error> {
     let string = if let syn::Lit::Str(lit) = lit {
         lit
     } else {
@@ -299,7 +299,7 @@ fn parse_lit_into_expr_path(lit: &syn::Lit) -> Result<ExprPath, Error> {
     syn::parse2(tokens)
 }
 
-fn parse_lit_into_ident(lit: &syn::Lit) -> Result<Ident, Error> {
+pub fn parse_lit_into_ident(lit: &syn::Lit) -> Result<Ident, Error> {
     let ident = if let syn::Lit::Str(lit) = lit {
         Ident::new(&lit.value(), lit.span())
     } else {

@@ -17,9 +17,11 @@
 use super::invalidation::DebugInvalidation;
 use super::{
     Align, BackgroundBrush, Click, Container, Controller, ControllerHost, EnvScope,
-    IdentityWrapper, LensWrap, Padding, Parse, SizedBox, WidgetId,
+    IdentityWrapper, LensWrap, Padding, Parse, PrismWrap, SizedBox, WidgetId,
 };
-use crate::{Color, Data, Env, EventCtx, Insets, KeyOrValue, Lens, UnitPoint, Widget};
+use crate::{
+    Color, Data, Env, EventCtx, Insets, KeyOrValue, Lens, PartialPrism, UnitPoint, Widget,
+};
 
 /// A trait that provides extra methods for combining `Widget`s.
 pub trait WidgetExt<T: Data>: Widget<T> + Sized + 'static {
@@ -217,6 +219,15 @@ pub trait WidgetExt<T: Data>: Widget<T> + Sized + 'static {
     /// [`Lens`]: trait.Lens.html
     fn lens<S: Data, L: Lens<S, T>>(self, lens: L) -> LensWrap<T, L, Self> {
         LensWrap::new(self, lens)
+    }
+
+    /// Wrap this widget in a [`PrismWrap`] widget for the provided [`PartialPrism`].
+    ///
+    ///
+    /// [`PrismWrap`]: struct.PrismWrap.html
+    /// [`PartialPrism`]: trait.PartialPrism.html
+    fn prism<S: Data, P: PartialPrism<S, T>>(self, prism: P) -> PrismWrap<T, P, Self> {
+        PrismWrap::new(self, prism)
     }
 
     /// Parse a `Widget<String>`'s contents

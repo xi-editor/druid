@@ -53,8 +53,8 @@ pub struct LensWrap<U, L, W> {
 impl<U, L, W> LensWrap<U, L, W> {
     /// Wrap a widget with a lens.
     ///
-    /// When the lens has type `Lens<T, U>`, the inner widget has data
-    /// of type `U`, and the wrapped widget has data of type `T`.
+    /// When the lens has type `Lens<T1, T2>`, the inner widget has data
+    /// of type `T2`, and the wrapped widget has data of type `T1`.
     pub fn new(inner: W, lens: L) -> LensWrap<U, L, W> {
         LensWrap {
             inner,
@@ -64,26 +64,26 @@ impl<U, L, W> LensWrap<U, L, W> {
     }
 }
 
-impl<T, U, L, W> Widget<T> for LensWrap<U, L, W>
+impl<T1, T2, L, W> Widget<T1> for LensWrap<T2, L, W>
 where
-    T: Data,
-    U: Data,
-    L: Lens<T, U>,
-    W: Widget<U>,
+    T1: Data,
+    T2: Data,
+    L: Lens<T1, T2>,
+    W: Widget<T2>,
 {
-    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T1, env: &Env) {
         let inner = &mut self.inner;
         self.lens
             .with_mut(data, |data| inner.event(ctx, event, data, env))
     }
 
-    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &T, env: &Env) {
+    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &T1, env: &Env) {
         let inner = &mut self.inner;
         self.lens
             .with(data, |data| inner.lifecycle(ctx, event, data, env))
     }
 
-    fn update(&mut self, ctx: &mut UpdateCtx, old_data: &T, data: &T, env: &Env) {
+    fn update(&mut self, ctx: &mut UpdateCtx, old_data: &T1, data: &T1, env: &Env) {
         let inner = &mut self.inner;
         let lens = &self.lens;
         lens.with(old_data, |old_data| {
@@ -95,13 +95,13 @@ where
         })
     }
 
-    fn layout(&mut self, ctx: &mut LayoutCtx, bc: &BoxConstraints, data: &T, env: &Env) -> Size {
+    fn layout(&mut self, ctx: &mut LayoutCtx, bc: &BoxConstraints, data: &T1, env: &Env) -> Size {
         let inner = &mut self.inner;
         self.lens
             .with(data, |data| inner.layout(ctx, bc, data, env))
     }
 
-    fn paint(&mut self, ctx: &mut PaintCtx, data: &T, env: &Env) {
+    fn paint(&mut self, ctx: &mut PaintCtx, data: &T1, env: &Env) {
         let inner = &mut self.inner;
         self.lens.with(data, |data| inner.paint(ctx, data, env));
     }

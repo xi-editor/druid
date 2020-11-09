@@ -18,9 +18,11 @@
 
 extern crate proc_macro;
 
-mod attr;
 mod data;
+mod field_attr;
 mod lens;
+mod prism;
+mod variant_attr;
 
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
@@ -92,6 +94,26 @@ pub fn derive_data(input: TokenStream) -> TokenStream {
 pub fn derive_lens(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     lens::derive_lens_impl(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// TODO
+#[proc_macro_derive(PartialPrism, attributes(prism))]
+pub fn derive_partial_prism(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    prism::derive_prism_impl(input, prism::Kind::PartialPrismOnly)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// TODO
+///
+/// Note: This will also derive `PartialPrism`.
+#[proc_macro_derive(Prism, attributes(prism))]
+pub fn derive_prism(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    prism::derive_prism_impl(input, prism::Kind::PartialPrismAndPrism)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

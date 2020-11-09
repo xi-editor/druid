@@ -131,7 +131,7 @@
 
 // Allows to use macros from druid_derive in this crate
 extern crate self as druid;
-pub use druid_derive::Lens;
+pub use druid_derive::{Lens, PartialPrism, Prism};
 
 use druid_shell as shell;
 #[doc(inline)]
@@ -141,9 +141,6 @@ pub use druid_shell::{kurbo, piet};
 #[cfg(feature = "im")]
 #[doc(inline)]
 pub use im;
-
-#[macro_use]
-pub mod lens;
 
 mod app;
 mod app_delegate;
@@ -159,6 +156,7 @@ mod ext_event;
 mod localization;
 mod menu;
 mod mouse;
+pub mod optics;
 pub mod scroll_component;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
@@ -195,10 +193,12 @@ pub use data::Data;
 pub use env::{Env, Key, KeyOrValue, Value, ValueType};
 pub use event::{Event, InternalEvent, InternalLifeCycle, LifeCycle};
 pub use ext_event::{ExtEventError, ExtEventSink};
-pub use lens::{Lens, LensExt};
 pub use localization::LocalizedString;
 pub use menu::{sys as platform_menus, ContextMenu, MenuDesc, MenuItem};
 pub use mouse::MouseEvent;
+pub use optics::affine_traversal;
+pub use optics::{lens, Lens, LensExt};
+pub use optics::{prism, PartialPrism, Prism, PrismExt};
 pub use text::{ArcStr, FontDescriptor, TextLayout};
 pub use util::Handled;
 pub use widget::{Widget, WidgetExt, WidgetId};
