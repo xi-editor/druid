@@ -1,4 +1,4 @@
-// Copyright 2020 The Druid Authors.
+// Copyright 2019 The Druid Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Logic that is shared by more than one platform.
+/*
+use std::ffi::OsString;
 
-cfg_if::cfg_if! {
-    if #[cfg(any(target_os = "macos", target_os = "linux"))] {
-        mod keyboard;
-        pub use keyboard::*;
-    }
+use crate::Error;
+use crate::{
+    dialog::{FileDialogOptions, FileDialogType, FileSpec},
+    window::WindowHandle,
+};
+
+pub(crate) fn get_file_dialog_path(
+    window: &WindowHandle,
+    ty: FileDialogType,
+    options: FileDialogOptions,
+) -> Result<OsString, Error> {
+    todo!()
 }
-cfg_if::cfg_if! {
-    if #[cfg(any(feature = "x11", feature = "wayland"))] {
-        mod timer;
-        pub use timer::*;
-    }
-}
+*/

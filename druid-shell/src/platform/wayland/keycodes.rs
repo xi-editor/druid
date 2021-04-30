@@ -1,4 +1,4 @@
-// Copyright 2020 The Druid Authors.
+// Copyright 2019 The Druid Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Logic that is shared by more than one platform.
+use crate::keyboard_types::{Key, Location};
 
-cfg_if::cfg_if! {
-    if #[cfg(any(target_os = "macos", target_os = "linux"))] {
-        mod keyboard;
-        pub use keyboard::*;
-    }
+pub type RawKey = ();
+
+pub fn raw_key_to_key(raw: RawKey) -> Option<Key> {
+    todo!()
 }
-cfg_if::cfg_if! {
-    if #[cfg(any(feature = "x11", feature = "wayland"))] {
-        mod timer;
-        pub use timer::*;
-    }
+
+pub fn raw_key_to_location(raw: RawKey) -> Location {
+    todo!()
+}
+
+pub fn key_to_raw_key(src: &Key) -> Option<RawKey> {
+    todo!()
 }

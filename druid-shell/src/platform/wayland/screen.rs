@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Logic that is shared by more than one platform.
+//! GTK Monitors and Screen information.
 
-cfg_if::cfg_if! {
-    if #[cfg(any(target_os = "macos", target_os = "linux"))] {
-        mod keyboard;
-        pub use keyboard::*;
-    }
-}
-cfg_if::cfg_if! {
-    if #[cfg(any(feature = "x11", feature = "wayland"))] {
-        mod timer;
-        pub use timer::*;
-    }
+use crate::screen::Monitor;
+//use kurbo::{Point, Rect, Size};
+
+pub(crate) fn get_monitors() -> Vec<Monitor> {
+    todo!()
 }
