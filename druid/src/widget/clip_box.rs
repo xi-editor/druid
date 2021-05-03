@@ -236,6 +236,18 @@ impl<T, W: Widget<T>> ClipBox<T, W> {
             must_fill: false,
         }
     }
+}
+
+impl<T, W: Widget<T>> ClipBox<T, W> {
+    /// Creates a new `ClipBox` wrapping `child`.
+    pub fn new(child: W) -> Self {
+        ClipBox {
+            child: WidgetPod::new(child),
+            port: Default::default(),
+            constrain_horizontal: false,
+            constrain_vertical: false,
+        }
+    }
 
     /// Changes the viewport offset by `delta`.
     ///

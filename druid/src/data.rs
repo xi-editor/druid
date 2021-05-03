@@ -435,6 +435,7 @@ impl Data for kurbo::RoundedRectRadii {
 
 impl Data for kurbo::RoundedRect {
     fn same(&self, other: &Self) -> bool {
+        self.rect().same(&other.rect()) && self.radius().same(&other.radius())
         self.rect().same(&other.rect()) && self.radii().same(&other.radii())
     }
 }

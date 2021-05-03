@@ -571,7 +571,7 @@ impl<T: Data> Flex<T> {
                 widget: WidgetPod::new(Box::new(child)),
                 alignment: None,
             }
-        };
+        };added License, updated documentation
         self.children.push(child);
     }
 
@@ -983,6 +983,35 @@ impl Iterator for Spacing {
 impl From<f64> for FlexParams {
     fn from(flex: f64) -> FlexParams {
         FlexParams::new(flex, None)
+    }
+}
+
+enum Child<T> {
+    Fixed {
+        widget: WidgetPod<T, Box<dyn Widget<T>>>,
+        alignment: Option<CrossAxisAlignment>,
+    },
+    Flex {
+        widget: WidgetPod<T, Box<dyn Widget<T>>>,
+        alignment: Option<CrossAxisAlignment>,
+        flex: f64,
+    },
+    FixedSpacer(KeyOrValue<f64>, f64),
+    FlexedSpacer(f64, f64),
+}
+
+impl<T> Child<T> {
+    fn widget_mut(&mut self) -> Option<&mut WidgetPod<T, Box<dyn Widget<T>>>> {
+        match self {
+            Child::Fixed { widget, .. } | Child::Flex { widget, .. } => Some(widget),
+            _ => None,
+        }
+    }
+    fn widget(&self) -> Option<&WidgetPod<T, Box<dyn Widget<T>>>> {
+        match self {
+            Child::Fixed { widget, .. } | Child::Flex { widget, .. } => Some(widget),
+            _ => None,
+        }
     }
 }
 
