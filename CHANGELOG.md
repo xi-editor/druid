@@ -41,6 +41,7 @@ You can find its changes [documented below](#070---2021-01-01).
 - `chrono` feature with `Data` support for [chrono](https://docs.rs/chrono/) types ([#1743] by [@r-ml])
 - Text input handles Delete key ([#1746] by [@bjorn])
 - `lens` macro can access nested fields ([#1764] by [@Maan2003])
+- `Scroll` widget: add the ability to snap the view to the most recent input ([#1798] by [@becky112358])
 
 ### Changed
 
@@ -482,6 +483,7 @@ Last release without a changelog :(
 [@r-ml]: https://github.com/r-ml
 [@djeedai]: https://github.com/djeedai
 [@bjorn]: https://github.com/bjorn
+[@becky112358]: https://github.com/becky112358
 
 [#599]: https://github.com/linebender/druid/pull/599
 [#611]: https://github.com/linebender/druid/pull/611
@@ -724,6 +726,7 @@ Last release without a changelog :(
 [#1764]: https://github.com/linebender/druid/pull/1764
 [#1772]: https://github.com/linebender/druid/pull/1772
 [#1787]: https://github.com/linebender/druid/pull/1787
+[#1798]: https://github.com/linebender/druid/pull/1798
 
 [Unreleased]: https://github.com/linebender/druid/compare/v0.7.0...master
 [0.7.0]: https://github.com/linebender/druid/compare/v0.6.0...v0.7.0
