@@ -33,7 +33,7 @@ use gtk::{AccelGroup, ApplicationWindow, DrawingArea, SettingsExt};
 use tracing::{error, warn};
 
 #[cfg(feature = "raw-win-handle")]
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use raw_window_handle::{unix::XcbHandle, HasRawWindowHandle, RawWindowHandle};
 
 use crate::kurbo::{Insets, Point, Rect, Size, Vec2};
 use crate::piet::{Piet, PietText, RenderContext};
@@ -220,8 +220,16 @@ impl WindowBuilder {
         self.show_titlebar = show_titlebar;
     }
 
+    pub fn show_title(&mut self, _show_title: bool) {
+        // Ignored
+    }
+
     pub fn set_transparent(&mut self, transparent: bool) {
         self.transparent = transparent;
+    }
+
+    pub fn set_transparent_titlebar(&mut self, _transparent_titlebar: bool) {
+        // Ignored
     }
 
     pub fn set_position(&mut self, position: Point) {
