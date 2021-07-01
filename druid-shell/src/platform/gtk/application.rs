@@ -14,8 +14,8 @@
 
 //! GTK implementation of features at the application scope.
 
-use gio::prelude::ApplicationExtManual;
-use gio::{ApplicationFlags, Cancellable};
+use gtk::gio::prelude::ApplicationExtManual;
+use gtk::gio::{ApplicationFlags, Cancellable};
 use gtk::Application as GtkApplication;
 
 use gtk::prelude::{ApplicationExt, GtkApplicationExt};
@@ -80,6 +80,6 @@ impl Application {
     }
 
     pub fn get_locale() -> String {
-        glib::language_names()[0].as_str().into()
+        gtk::glib::language_names()[0].as_str().into()
     }
 }

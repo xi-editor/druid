@@ -14,7 +14,7 @@
 
 //! Interactions with the system pasteboard on GTK+.
 
-use gdk::Atom;
+use gtk::gdk::{Atom, Display};
 use gtk::{TargetEntry, TargetFlags};
 
 use crate::clipboard::{ClipboardFormat, FormatId};
@@ -36,7 +36,7 @@ impl Clipboard {
     pub fn put_string(&mut self, string: impl AsRef<str>) {
         let string = string.as_ref().to_string();
 
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
 
         let targets: Vec<TargetEntry> = CLIPBOARD_TARGETS
@@ -54,7 +54,7 @@ impl Clipboard {
     /// Put multi-format data on the system clipboard.
     pub fn put_formats(&mut self, formats: &[ClipboardFormat]) {
         let entries = make_entries(formats);
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
         // this is gross: we need to reclone all the data in formats in order
         // to move it into the closure. :/
@@ -82,7 +82,7 @@ impl Clipboard {
 
     /// Get a string from the system clipboard, if one is available.
     pub fn get_string(&self) -> Option<String> {
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
 
         for target in &CLIPBOARD_TARGETS {
@@ -98,7 +98,7 @@ impl Clipboard {
     /// Given a list of supported clipboard types, returns the supported type which has
     /// highest priority on the system clipboard, or `None` if no types are supported.
     pub fn preferred_format(&self, formats: &[FormatId]) -> Option<FormatId> {
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
         let targets = clipboard.wait_for_targets()?;
         let format_atoms = formats
@@ -118,14 +118,14 @@ impl Clipboard {
     /// It is recommended that the `fmt` argument be a format returned by
     /// [`Clipboard::preferred_format`]
     pub fn get_format(&self, format: FormatId) -> Option<Vec<u8>> {
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
         let atom = Atom::intern(format);
         clipboard.wait_for_contents(&atom).map(|data| data.data())
     }
 
     pub fn available_type_names(&self) -> Vec<String> {
-        let display = gdk::Display::default().unwrap();
+        let display = Display::default().unwrap();
         let clipboard = gtk::Clipboard::default(&display).unwrap();
         let targets = clipboard.wait_for_targets().unwrap_or_default();
         targets
