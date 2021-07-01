@@ -203,9 +203,9 @@ impl Application {
             .roots
             .get(screen_num as usize)
             .ok_or_else(|| anyhow!("Invalid screen num: {}", screen_num))?;
-        let root_visual_type = util::get_visual_from_screen(&screen)
+        let root_visual_type = util::get_visual_from_screen(screen)
             .ok_or_else(|| anyhow!("Couldn't get visual from screen"))?;
-        let argb_visual_type = util::get_argb_visual_type(&*connection, &screen)?;
+        let argb_visual_type = util::get_argb_visual_type(&*connection, screen)?;
 
         Ok(Application {
             connection,
