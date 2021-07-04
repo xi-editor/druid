@@ -16,7 +16,7 @@
 
 use cocoa::appkit::{NSEventModifierFlags, NSMenu, NSMenuItem};
 use cocoa::base::{id, nil, NO};
-use cocoa::foundation::NSAutoreleasePool;
+use cocoa::foundation::{NSAutoreleasePool, NSString};
 use objc::{msg_send, sel, sel_impl};
 
 use super::util::make_nsstring;
@@ -59,7 +59,8 @@ fn make_menu_item(id: u32, text: &str, key: Option<&HotKey>, enabled: bool, sele
 impl Menu {
     pub fn new() -> Menu {
         unsafe {
-            let menu = NSMenu::alloc(nil).autorelease();
+            let title = NSString::alloc(nil).init_str("").autorelease();
+            let menu = NSMenu::alloc(nil).initWithTitle_(title).autorelease();
             let () = msg_send![menu, setAutoenablesItems: NO];
             Menu { menu }
         }
@@ -68,6 +69,13 @@ impl Menu {
     pub fn new_for_popup() -> Menu {
         // mac doesn't distinguish between application and context menu types.
         Menu::new()
+    }
+
+    pub fn set_title<T: AsRef<str>>(&self, title: T) {
+        unsafe {
+            let title = NSString::alloc(nil).init_str(title.as_ref()).autorelease();
+            let _: () = msg_send![self.menu, setTitle: title];
+        }
     }
 
     pub fn add_dropdown(&mut self, menu: Menu, text: &str, enabled: bool) {
