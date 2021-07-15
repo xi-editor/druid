@@ -51,6 +51,7 @@ You can find its changes [documented below](#070---2021-01-01).
 - Linux extension: primary_clipboard ([#1843] by [@Maan2003])
 - x11: Implement primary_clipboard ([#1867] by [@psychon])
 - x11: Set WM_CLASS property ([#1868] by [@psychon])
+- Widget/Slider: Add stepping functionality ([#1875] by [@raymanfx])
 
 ### Changed
 
